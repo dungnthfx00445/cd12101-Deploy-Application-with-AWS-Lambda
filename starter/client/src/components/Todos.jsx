@@ -14,7 +14,8 @@ import {
 import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate } from 'react-router-dom'
 import { deleteTodo, getTodos, patchTodo } from '../api/todos-api'
-import { NewTodoInput } from './NewTodoInput'
+import { NewTodoInput } from './NewTodoInput';
+const audienceUrl = `https://${process.env.REACT_APP_AUTH0_DOMAIN}/api/v2/`;
 
 export function Todos() {
   function renderTodos() {
@@ -28,7 +29,7 @@ export function Todos() {
   function renderTodosList() {
     return (
       <Grid padded>
-        {todos.map((todo, pos) => {
+        {todos?.map((todo, pos) => {
           return (
             <Grid.Row key={todo.todoId}>
               <Grid.Column width={1} verticalAlign="middle">
@@ -77,7 +78,7 @@ export function Todos() {
   async function onTodoDelete(todoId) {
     try {
       const accessToken = await getAccessTokenSilently({
-        audience: `https://test-endpoint.auth0.com/api/v2/`,
+        audience: `${audienceUrl}`,
         scope: 'delete:todo'
       })
       await deleteTodo(accessToken, todoId)
@@ -91,7 +92,7 @@ export function Todos() {
     try {
       const todo = todos[pos]
       const accessToken = await getAccessTokenSilently({
-        audience: `https://test-endpoint.auth0.com/api/v2/`,
+        audience: `${audienceUrl}`,
         scope: 'write:todo'
       })
       await patchTodo(accessToken, todo.todoId, {
@@ -128,7 +129,7 @@ export function Todos() {
     async function foo() {
       try {
         const accessToken = await getAccessTokenSilently({
-          audience: `https://test-endpoint.auth0.com/api/v2/`,
+          audience: `${audienceUrl}`,
           scope: 'read:todos'
         })
         console.log('Access token: ' + accessToken)

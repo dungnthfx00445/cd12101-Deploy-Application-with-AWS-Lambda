@@ -12,7 +12,7 @@ export default function App() {
   function generateMenu() {
     return (
       <Menu>
-        <Menu.Item as={Link} to={'/'}>
+        <Menu.Item as={Link} to={'/todos'}>
           Home
         </Menu.Item>
 
@@ -65,7 +65,7 @@ function generateCurrentPage(isAuthenticated) {
 
   return (
     <Routes>
-      <Route path="/" exact element={<Todos />} />
+      <Route path="/todos" exact element={<Todos />} />
 
       <Route path="/todos/:todoId/edit" exact element={<EditTodo />} />
 
