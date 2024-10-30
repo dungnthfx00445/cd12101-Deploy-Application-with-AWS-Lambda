@@ -1,7 +1,9 @@
 service: serverless-todo-app
+configValidationMode: error
 
 plugins:
   - serverless-iam-roles-per-function
+  - serverless-reqvalidator-plugin
 
 frameworkVersion: '3.39.0'
  
@@ -26,7 +28,6 @@ provider:
     restApi: true
 
 functions:
-
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
     iamRoleStatements:
@@ -60,29 +61,30 @@ functions:
   #         - "*"
 
   # # TODO: Configure this function
-  # CreateTodo:
-  #   handler: src/lambda/http/createTodo.handler
-  #   events:
-  #     - http:
-  #         method: post
-  #         path: todos
-  #         cors: true
-  #         authorizer: Auth
-  #         request:
-  #           schema:
-  #             application/json: ${file(models/create-todo-request.json)}
-  #   iamRoleStatementsInherit: true
-  #   iamRoleStatements:
-  #     - Effect: Allow
-  #       Action:
-  #         - dynamodb:PutItem
-  #       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
-  #     - Effect: "Allow"
-  #       Action:
-  #         - "xray:PutTraceSegments"
-  #         - "xray:PutTelemetryRecords"
-  #       Resource:
-  #         - "*"
+  CreateTodo:
+    handler: src/lambda/http/createTodo.handler
+    events:
+      - http:
+          method: post
+          path: todos
+          cors: true
+          authorizer: Auth
+          request:
+            schemas:
+              application/json: ${file(src/request/create-todo-request.json)}
+    iamRoleStatementsName: CreateTodoRole  
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: "Allow"
+        Action:
+          - "xray:PutTraceSegments"
+          - "xray:PutTelemetryRecords"
+        Resource:
+          - "*"
 
   # # TODO: Configure this function
   # UpdateTodo:
@@ -95,7 +97,7 @@ functions:
   #         authorizer: Auth
   #         request:
   #           schema:
-  #             application/json: ${file(models/update-todo-request.json)}
+  #             application/json: ${file(request/update-todo-request.json)}
   #   iamRoleStatementsInherit: true
   #   iamRoleStatements:
   #     - Effect: Allow
@@ -165,73 +167,85 @@ functions:
 
 
 resources:
-  # Resources:
+  Resources:
   #   # TODO: Add any necessary AWS resources
-  #   GatewayResponseDefault4XX:
-  #     Type: AWS::ApiGateway::GatewayResponse
-  #     Properties:
-  #       ResponseParameters:
-  #         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-  #         gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type'"
-  #         gatewayresponse.header.Access-Control-Allow-Methods: "'GET, OPTION'"
-  #       ResponseType: DEFAULT_4XX
-  #       RestApiId:
-  #         Ref: ApiGatewayRestApi
-  #   TodosTable:
-  #     Type: AWS::DynamoDB::Table
-  #     Properties:
-  #       AttributeDefinitions:
-  #         - AttributeName: userId
-  #           AttributeType: S
-  #         - AttributeName: todoId
-  #           AttributeType: S
-  #         - AttributeName: createdAt
-  #           AttributeType: S
-  #       KeySchema:
-  #         - AttributeName: userId
-  #           KeyType: HASH
-  #         - AttributeName: todoId
-  #           KeyType: RANGE
-  #       BillingMode: PAY_PER_REQUEST
-  #       TableName: ${self:provider.environment.TODOS_TABLE}
-  #       LocalSecondaryIndexes:
-  #         - IndexName: ${self:provider.environment.TODOS_CREATED_AT_INDEX}
-  #           KeySchema:
-  #             - AttributeName: userId
-  #               KeyType: HASH
-  #             - AttributeName: createdAt
-  #               KeyType: RANGE
-  #           Projection:
-  #             ProjectionType: ALL
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET, OPTION, POST'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET, OPTION, POST'"
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+
+    TodosTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: todoId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: todoId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:provider.environment.TODOS_TABLE}
+        LocalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.TODOS_CREATED_AT_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
 
   #   # S3 Bucket for storing attachments
-  #   TodoImagesBucket:
-  #     Type: AWS::S3::Bucket
-  #     Properties:
-  #       BucketName: ${self:provider.environment.ATTACHMENT_S3_BUCKET}
-  #       CorsConfiguration:
-  #         CorsRules:
-  #           - AllowedOrigins:
-  #               - '*'
-  #             AllowedHeaders:
-  #               - '*'
-  #             AllowedMethods:
-  #               - GET
-  #               - PUT
-  #               - POST
-  #               - DELETE
-  #             MaxAge: 3000
-  #   TodoImagesBucketPolicy:
-  #     Type: AWS::S3::BucketPolicy
-  #     Properties:
-  #       Bucket: !Ref TodoImagesBucket
-  #       PolicyDocument:
-  #         Version: "2012-10-17"
-  #         Statement:
-  #           - Effect: Allow
-  #             Principal: '*' 
-  #             Action:
-  #               - s3:GetObject
-  #               - s3:PutObject
-  #             Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
+    AttachmentBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.ATTACHMENT_S3_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+              MaxAge: 3000
+    AttachmentBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref AttachmentBucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: '*' 
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
 
